@@ -1,0 +1,87 @@
+---
+layout: post
+title: Angular circular dependencies
+categories: others
+---
+
+<p>It seems like every person during his relations with angular had faced the following issue: nasty error message "Circular dependency: C <- B <- A". Often it appears when you have added a small module with irrelevant functionality. And instead of nice screen of your app you see that kind of error in console. And you think "I have just added this small module 'A' why is everything crashed?"...</p>
+
+<p>Today I have faced this issue once again. So the decision to bypass it clearly has arose. Indeed this issue speaks for itself, it just says angular can not build dependencies tree because of intermodule dependencies, e.g: module A requires module B, and module B in its turn requires module A.</p>
+
+{% highlight javascript %}
+angular.module('myApp',[])
+  .service('A', function (B) {
+
+  })
+  .service('B', function (C) {
+
+  })
+  .service('C', function (A) {
+
+  });
+{% endhighlight %}
+
+<p>There are few workarounds for the aforementioned issue:</p>
+<ol>
+  <li>
+    The simplest and the dirtiest: Lazy load the dependency using the $injector service, but you should perform that after the dependencies were initialized (after the bootstrapping phase).
+{% highlight javascript %}
+angular.module('myApp',[])
+  .service('A', function (B) {
+
+  })
+  .service('B', function (C) {
+
+  })
+  .service('C', function ($timeout, $injector) {
+    var service = this;
+
+    $timeout(function () {
+      var A = $injector.get('A');
+      //code that uses A
+    });
+  });
+{% endhighlight %}
+  </li>
+  <li>
+  Remove the dependency which causes an error and move the code that uses it into run block. It is not the best solution but as quick fix it works fine.
+{% highlight javascript %}
+angular.module('myApp',[])
+  .run(function (A, C) {
+    //code that uses A and C
+  })
+  .factory('A', function (B) {
+
+  })
+  .factory('B', function (C) {
+
+  })
+  .factory('C', function () {
+
+  });
+{% endhighlight %}
+  </li>
+  <li>
+    Create separate service that will share the common state and will be injected into both services (Try to use this one, cause it's the most clean solution). You probably find out that some business logic does not belong to services it is placed in.
+
+{% highlight javascript %}
+angular.module('myApp',[])
+  .run(function (A) {})
+  .factory('A', function (Q) {
+
+  })
+  .factory('B', function (C) {
+
+  })
+  .factory('C', function (Q) {
+
+  })
+  .factory('Q', function () {
+    //shared code here
+  })
+{% endhighlight %}
+  </li>
+</ol>
+
+<p>Thanks for reading, in case of questions just mail me at <a href="kennyx46@gmail.com">kennyx46@gmail.com</a></p>
+
